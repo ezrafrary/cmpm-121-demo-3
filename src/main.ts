@@ -1,6 +1,8 @@
 // @deno-types="npm:@types/leaflet@^1.9.14"
 import leaflet from "leaflet";
 
+// deno-lint-ignore-file no-unused-vars prefer-const
+
 // Style sheets
 import "leaflet/dist/leaflet.css";
 import "./style.css";
@@ -12,20 +14,21 @@ import "./leafletWorkaround.ts";
 import luck from "./luck.ts";
 
 // Location of our classroom (as identified on Google Maps)
-const STARTING_POSITION = leaflet.latLng(
-  36.98949379578401,
-  -122.06277128548504,
-);
+const PLAYER_POS = leaflet.latLng(36.98949379578401,-122.06287128548504,);
+const NULL_ISLAND_STARTING_POS = leaflet.latLng(0,0,);
+
+
+
 
 // Tunable gameplay parameters
 const GAMEPLAY_ZOOM_LEVEL = 19;
 const TILE_DEGREES = 0.0001;
-const NEIGHBORHOOD_SIZE = 8;
+const NEIGHBORHOOD_SIZE = 9;
 const CACHE_SPAWN_PROBABILITY = 0.1;
 
 // Create the map (element with id "map" is defined in index.html)
 const map = leaflet.map(document.getElementById("map")!, {
-  center: STARTING_POSITION,
+  center: PLAYER_POS,
   zoom: GAMEPLAY_ZOOM_LEVEL,
   minZoom: GAMEPLAY_ZOOM_LEVEL,
   maxZoom: GAMEPLAY_ZOOM_LEVEL,
@@ -46,9 +49,11 @@ leaflet
   .addTo(map);
 
 // Add a marker to represent the player
-const playerMarker = leaflet.marker(STARTING_POSITION);
+const playerMarker = leaflet.marker(PLAYER_POS);
 playerMarker.bindTooltip("Player");
 playerMarker.addTo(map);
+
+
 
 // Display the player's points
 let playerPoints = 0;
@@ -60,10 +65,72 @@ interface Cord {
   y: number;
 }
 
+
+
+interface SerialNumber {
+  SN: number;
+}
+
+interface GeoCoin {
+  coinLocation: Cord;
+  SN: SerialNumber;
+}
+
+let CurrentSN = 0;
+
+function generateCoin(inputCords: Cord){
+  const newSN: SerialNumber = {SN: CurrentSN};
+  const returnCoin: GeoCoin = {coinLocation: inputCords, SN: newSN};
+  CurrentSN++;
+  return returnCoin;
+}
+
+function printCoin(inputCoin: GeoCoin){
+  const returnString = `x: ${inputCoin.coinLocation.x} y: ${inputCoin.coinLocation.y} SN: ${inputCoin.SN.SN}  `
+  return returnString;
+}
+function printCoinShort(inputCoin: GeoCoin){
+  const returnString = `${inputCoin.coinLocation.x}:${inputCoin.coinLocation.y}#${inputCoin.SN.SN} `
+  return returnString;
+}
+
+function printCoinArrayShort(inputCoinArray: GeoCoin[]){
+  let returnStatement = ``;
+  for(let i = 0; i < inputCoinArray.length; i++){
+    returnStatement += printCoinShort(inputCoinArray[i]);
+  }
+  return returnStatement;
+}
+
+
+
+const playerPosText = document.querySelector<HTMLDivElement>("#playerPosText")!;
+playerPosText.innerHTML = `Player Position: ${convertLeafletToCord(PLAYER_POS).x}, ${convertLeafletToCord(PLAYER_POS).y}`;
+
+function convertLeafletToCord(input: leaflet.LatLng){
+  const returnCord: Cord = {x: Math.floor(input.lat * 10000),y: Math.floor(input.lng * 10000)};
+  
+  
+  //const returnCord: Cord = {x: input.lat * 10000,y: input.lng * 10000};
+  return returnCord;
+}
+
+
+
+let playerInventory: GeoCoin[] = [];  
+
+function transferCoin(sourceArray: GeoCoin[], targetArray: GeoCoin[]){
+  const pushCoin = sourceArray.pop(); //can return undefigned
+  if(pushCoin != undefined){
+    targetArray.push(pushCoin);
+  }
+}
+
+
 // Add caches to the map by cell numbers
 function spawnCache(inputCord: Cord) {
   // Convert cell numbers into lat/lng bounds
-  const origin = STARTING_POSITION;
+  const origin = NULL_ISLAND_STARTING_POS;
   const bounds = leaflet.latLngBounds([
     [
       origin.lat + inputCord.x * TILE_DEGREES,
@@ -80,44 +147,77 @@ function spawnCache(inputCord: Cord) {
   rect.addTo(map);
 
   // Handle interactions with the cache
-  rect.bindPopup(() => {
-    // Each cache has a random point value, mutable by the player
+  // Each cache has a random point value, mutable by the player
     let pointValue = Math.floor(
       luck([inputCord.x, inputCord.y, "initialValue"].toString()) * 100,
     );
+
+    let coinArray: GeoCoin[] = [];
+    
+    for(let i = 0; i < pointValue;i++){
+      const newCoin = generateCoin(inputCord);
+      coinArray.push(newCoin);
+    }
+  rect.bindPopup(() => {
+    
+
+
 
     // The popup offers a description and button
     const popupDiv = document.createElement("div");
     popupDiv.style.background = "white";
     popupDiv.innerHTML = `
-                <div>Cache at ${inputCord.x},${inputCord.y} with <span id="value">${pointValue}</span>.</div>
+                <div>Cache at ${inputCord.x},${inputCord.y} with <span id="value">${pointValue}}</span>.</div>
                 <button id="collect" style="background-color: white;">collect</button>
                 <button id="deposit" style="background-color: white;">deposit</button>
+                <div id="coins">${printCoinArrayShort(coinArray)}</div>
                 `;
 
     // Clicking the button decrements the cache's value and increments the player's points
     popupDiv.querySelector<HTMLButtonElement>("#collect")!.addEventListener(
       "click",
-      () => {
+      (event) => {
+
+        // Prevent the popup from closing when clicking this button
+        event.stopPropagation();
+
+
         if (pointValue > 0) {
           pointValue--;
           popupDiv.querySelector<HTMLSpanElement>("#value")!.innerHTML =
             pointValue.toString();
           playerPoints++;
-          pointText.innerHTML = `Point total: ${playerPoints}`;
+
+
+
+
+          transferCoin(coinArray,playerInventory);
+          pointText.innerHTML = `Point total: ${playerPoints}  |  Coins: ${printCoinArrayShort(playerInventory)}`;
+          
+          popupDiv.querySelector<HTMLSpanElement>("#value")!.innerHTML = pointValue.toString();
+          popupDiv.querySelector<HTMLDivElement>("#coins")!.innerHTML = printCoinArrayShort(coinArray);
         }
       },
     );
 
     popupDiv.querySelector<HTMLButtonElement>("#deposit")!.addEventListener(
       "click",
-      () => {
+      (event) => {
+
+        // Prevent the popup from closing when clicking this button
+        event.stopPropagation();
         if (playerPoints > 0) {
           pointValue++;
           popupDiv.querySelector<HTMLSpanElement>("#value")!.innerHTML =
             pointValue.toString();
           playerPoints--;
-          pointText.innerHTML = `Point total: ${playerPoints}`;
+
+          transferCoin(playerInventory, coinArray);
+          pointText.innerHTML = `Point total: ${playerPoints}  |  Coins: ${printCoinArrayShort(playerInventory)}`;
+          
+
+          popupDiv.querySelector<HTMLSpanElement>("#value")!.innerHTML = pointValue.toString();
+          popupDiv.querySelector<HTMLDivElement>("#coins")!.innerHTML = printCoinArrayShort(coinArray);
         }
       },
     );
@@ -126,9 +226,10 @@ function spawnCache(inputCord: Cord) {
   });
 }
 
+
 // Look around the player's neighborhood for caches to spawn
-for (let i = -NEIGHBORHOOD_SIZE; i < NEIGHBORHOOD_SIZE; i++) {
-  for (let j = -NEIGHBORHOOD_SIZE; j < NEIGHBORHOOD_SIZE; j++) {
+for (let i = -NEIGHBORHOOD_SIZE + convertLeafletToCord(PLAYER_POS).x; i < NEIGHBORHOOD_SIZE + convertLeafletToCord(PLAYER_POS).x; i++) {
+  for (let j = -NEIGHBORHOOD_SIZE + convertLeafletToCord(PLAYER_POS).y; j < NEIGHBORHOOD_SIZE + convertLeafletToCord(PLAYER_POS).y; j++) {
     // If location i,j is lucky enough, spawn a cache!
     if (luck([i, j].toString()) < CACHE_SPAWN_PROBABILITY) {
       const outputCord: Cord = { x: i, y: j };
