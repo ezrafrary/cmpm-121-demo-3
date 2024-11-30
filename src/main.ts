@@ -66,7 +66,6 @@ interface Cord {
 }
 
 
-
 interface SerialNumber {
   SN: number;
 }
@@ -125,6 +124,9 @@ function transferCoin(sourceArray: GeoCoin[], targetArray: GeoCoin[]){
     targetArray.push(pushCoin);
   }
 }
+
+
+
 
 
 // Add caches to the map by cell numbers
@@ -236,4 +238,56 @@ for (let i = -NEIGHBORHOOD_SIZE + convertLeafletToCord(PLAYER_POS).x; i < NEIGHB
       spawnCache(outputCord);
     }
   }
+}
+
+
+
+//movement
+// Set initial movement offset in degrees
+const MOVEMENT_STEP = TILE_DEGREES; // This controls how far the player moves per button press
+
+function movePlayer(direction: "north" | "south" | "west" | "east") {
+  // Adjust the player's position based on the direction
+  let newLat = PLAYER_POS.lat; // Copy current latitude
+  let newLng = PLAYER_POS.lng; // Copy current longitude
+
+  if (direction === "north") newLat += MOVEMENT_STEP; // Move up
+  if (direction === "south") newLat -= MOVEMENT_STEP; // Move down
+  if (direction === "west") newLng -= MOVEMENT_STEP; // Move left
+  if (direction === "east") newLng += MOVEMENT_STEP; // Move right
+
+  // Update player's position
+  PLAYER_POS.lat = newLat;
+  PLAYER_POS.lng = newLng;
+
+  // Move the player's marker on the map
+  playerMarker.setLatLng([newLat, newLng]);
+
+  // Update the displayed player's position
+  playerPosText.innerHTML = `Player Position: ${convertLeafletToCord(PLAYER_POS).x}, ${convertLeafletToCord(PLAYER_POS).y}`;
+
+  // Optionally: Check for caches or other actions based on the new position
+  checkForCacheInteraction();
+}
+
+// Hook up movement buttons to movePlayer()
+document.getElementById("north")!.addEventListener("click", () => movePlayer("north"));
+document.getElementById("south")!.addEventListener("click", () => movePlayer("south"));
+document.getElementById("west")!.addEventListener("click", () => movePlayer("west"));
+document.getElementById("east")!.addEventListener("click", () => movePlayer("east"));
+
+// Example function to check for interactions with caches after movement
+function checkForCacheInteraction() {
+  // Convert player's position to a grid coordinate
+  const playerCord = convertLeafletToCord(PLAYER_POS);
+  for (let i = -NEIGHBORHOOD_SIZE + convertLeafletToCord(PLAYER_POS).x; i < NEIGHBORHOOD_SIZE + convertLeafletToCord(PLAYER_POS).x; i++) {
+    for (let j = -NEIGHBORHOOD_SIZE + convertLeafletToCord(PLAYER_POS).y; j < NEIGHBORHOOD_SIZE + convertLeafletToCord(PLAYER_POS).y; j++) {
+      // If location i,j is lucky enough, spawn a cache!
+      if (luck([i, j].toString()) < CACHE_SPAWN_PROBABILITY) {
+        const outputCord: Cord = { x: i, y: j };
+        spawnCache(outputCord);
+      }
+    }
+  }
+  
 }
