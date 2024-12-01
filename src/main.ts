@@ -1,8 +1,6 @@
 // @deno-types="npm:@types/leaflet@^1.9.14"
 import leaflet from "leaflet";
 
-// deno-lint-ignore-file no-unused-vars prefer-const
-
 // Style sheets
 import "leaflet/dist/leaflet.css";
 import "./style.css";
@@ -13,17 +11,15 @@ import "./leafletWorkaround.ts";
 // Deterministic random number generator
 import luck from "./luck.ts";
 
-// Location of our classroom (as identified on Google Maps)
+// classroomLocation and 0,0
 let PLAYER_POS = leaflet.latLng(36.98949379578401, -122.06287128548504);
 const NULL_ISLAND_STARTING_POS = leaflet.latLng(0, 0);
 
-// Tunable gameplay parameters
+// map stuff
 const GAMEPLAY_ZOOM_LEVEL = 19;
-const TILE_DEGREES = 0.0001; // Each tile is 0.0001° in size
-const NEIGHBORHOOD_SIZE = 9; // Neighborhood size (radius of visibility)
-const CACHE_SPAWN_PROBABILITY = 0.1; // Probability of spawning a cache in a tile
-
-// Create the map
+const TILE_DEGREES = 0.0001; 
+const NEIGHBORHOOD_SIZE = 9; 
+const CACHE_SPAWN_PROBABILITY = 0.1; // 10%
 const map = leaflet.map(document.getElementById("map")!, {
   center: PLAYER_POS,
   zoom: GAMEPLAY_ZOOM_LEVEL,
@@ -32,8 +28,6 @@ const map = leaflet.map(document.getElementById("map")!, {
   zoomControl: false,
   scrollWheelZoom: false,
 });
-
-// Populate the map with a background tile layer
 const backgroundStuff = leaflet
   .tileLayer(
     "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
@@ -45,12 +39,12 @@ const backgroundStuff = leaflet
   )
   .addTo(map);
 
-// Add a marker to represent the player
+// playerMarker
 const playerMarker = leaflet.marker(PLAYER_POS);
 playerMarker.bindTooltip("Player");
 playerMarker.addTo(map);
 
-// Display the player's points and inventory
+// playerInventory
 let playerPoints = 0;
 const pointText = document.querySelector<HTMLDivElement>("#pointText")!;
 pointText.innerHTML = "Point total: 0";
@@ -60,11 +54,9 @@ interface Cord {
   x: number;
   y: number;
 }
-
 interface SerialNumber {
   SN: number;
 }
-
 interface GeoCoin {
   coinLocation: Cord;
   SN: SerialNumber;
@@ -73,13 +65,10 @@ interface GeoCoin {
 // Global variables for caches and coins
 let CurrentSN = 0;
 let playerInventory: GeoCoin[] = [];
-const spawnedTiles = new Set<string>(); // Tracks which tiles are explored
-const activeRectangles: Map<string, leaflet.Rectangle> = new Map(); // Tracks currently visible tiles
+const spawnedTiles = new Set<string>(); // Tracks which tiles are explored, so when you leave a tile, it doesnt disappear forever
+const activeRectangles: Map<string, leaflet.Rectangle> = new Map(); // Tracks currently visible tiles and shows them
+const tileData: Map<string, { pointValue: number; coinArray: GeoCoin[] }> = new Map(); //Brace helped me with the concept of Map<string
 
-// Persistent tile data with pointValue and coinArray
-const tileData: Map<string, { pointValue: number; coinArray: GeoCoin[] }> = new Map();
-
-// Generate coins procedurally
 function generateCoin(inputCords: Cord): GeoCoin {
   const newSN: SerialNumber = { SN: CurrentSN };
   const returnCoin: GeoCoin = { coinLocation: inputCords, SN: newSN };
@@ -87,11 +76,13 @@ function generateCoin(inputCords: Cord): GeoCoin {
   return returnCoin;
 }
 
+//prints a singular coin
 function printCoinShort(inputCoin: GeoCoin) {
   const returnString = `${inputCoin.coinLocation.x}:${inputCoin.coinLocation.y}#${inputCoin.SN.SN} `;
   return returnString;
 }
 
+//prints an array of coins (ie the inventory)
 function printCoinArrayShort(inputCoinArray: GeoCoin[]) {
   let returnStatement = ``;
   for (let i = 0; i < inputCoinArray.length; i++) {
@@ -100,7 +91,7 @@ function printCoinArrayShort(inputCoinArray: GeoCoin[]) {
   return returnStatement;
 }
 
-// Convert LatLng to game grid coordinates
+// Convert LatLng to Cord
 function convertLeafletToCord(input: leaflet.LatLng): Cord {
   return { x: Math.floor(input.lat * 10000), y: Math.floor(input.lng * 10000) };
 }
@@ -187,6 +178,8 @@ function restoreTile(tileKey: string, inputCord: Cord) {
 }
 
 // Create popup content for a cache
+//brace helped me remove some code smells, specifically the duplicate code. 
+//This createpopup function has helped a ton
 function createPopup(
   inputCord: Cord,
   coinArray: GeoCoin[],
@@ -255,10 +248,11 @@ function createPopup(
     }
   );
 
+  //return statement not really used, but it is nice to have
   return popupDiv;
 }
 
-// Remove out-of-range tiles
+// this creates the "fog of war" where the player cannot see further than what is around them
 function removeOutOfRangeCaches(playerCord: Cord) {
   for (const [key, rect] of activeRectangles.entries()) {
     const [x, y] = key.split(",").map(Number);
@@ -283,9 +277,8 @@ function checkForCacheInteraction() {
   removeOutOfRangeCaches(playerCord); // Clean up non-visible tiles
 } 
 
-// Handle player movement and update polyline
-const MOVEMENT_STEP = TILE_DEGREES;
 
+const MOVEMENT_STEP = TILE_DEGREES; //what direction the player is going. origionally didn't have this, but what if we want the buttons to move the player by more or less than a tile?
 function movePlayer(direction: "north" | "south" | "west" | "east") {
   let newLat = PLAYER_POS.lat;
   let newLng = PLAYER_POS.lng;
@@ -299,12 +292,9 @@ function movePlayer(direction: "north" | "south" | "west" | "east") {
   PLAYER_POS.lng = newLng;
 
   playerMarker.setLatLng([newLat, newLng]); // Move the player marker
-  checkForCacheInteraction(); // Trigger fog of war updates
+  checkForCacheInteraction(); 
 
-  // Add the new position to the path
   playerPath.push(leaflet.latLng(newLat, newLng));
-
-  // Update the polyline with the new path
   playerPathPolyline.setLatLngs(playerPath);
 
   saveGameState();
@@ -320,11 +310,20 @@ document.getElementById("east")!.addEventListener("click", () => movePlayer("eas
 // Initial set up
 loadGameState();
 checkForCacheInteraction();
+const playerPath: leaflet.LatLng[] = [];
+// Create a polyline to visualize the path on the map
+let playerPathPolyline = leaflet.polyline(playerPath, {
+  color: 'blue', // Line color
+  weight: 4, // Line thickness
+  opacity: 0.6 // Line opacity
+}).addTo(map);
+
+//first position
+playerPath.push(leaflet.latLng(PLAYER_POS.lat, PLAYER_POS.lng));
 
 
 
-
-//saving game
+//saving game, brace was a help in creating this specifically the "localStorage" keyword
 function saveGameState() {
   const gameState = {
     playerPosition: PLAYER_POS,
@@ -362,27 +361,14 @@ function loadGameState() {
 
 
 
-const playerPath: leaflet.LatLng[] = [];
-
-// Create a polyline to visualize the path on the map
-let playerPathPolyline = leaflet.polyline(playerPath, {
-  color: 'blue', // Line color
-  weight: 4, // Line thickness
-  opacity: 0.6 // Line opacity
-}).addTo(map);
-
-//first position
-playerPath.push(leaflet.latLng(PLAYER_POS.lat, PLAYER_POS.lng));
 
 
 
 
 
-// Reset the game to its initial state
 function resetGame() {
-  // Reset player position to the original start position
   PLAYER_POS = leaflet.latLng(36.98949379578401, -122.06287128548504); // Starting position
-  playerMarker.setLatLng(PLAYER_POS); // Update player marker on the map
+  playerMarker.setLatLng(PLAYER_POS); 
 
   // Reset gameplay data
   playerPoints = 0;
@@ -391,53 +377,50 @@ function resetGame() {
   activeRectangles.clear();
   tileData.clear();
 
-  // Clear the map of any cache rectangles that might be present
+  //this deletes all the rectangles from the screen
   map.eachLayer((layer) => {
-    // Remove all layers except for the tile layer and player marker
     if (layer !== playerMarker && layer !== backgroundStuff && layer !== playerPathPolyline) {
       map.removeLayer(layer);
     }
   });
 
-  playerPath.length = 0;
-  
-  
+  playerPath.length = 0; //clears the path where the player has been.
   playerPath.push(leaflet.latLng(PLAYER_POS.lat, PLAYER_POS.lng));
 
   playerPathPolyline = leaflet.polyline(playerPath, {
-    color: 'blue', // Line color
-    weight: 4, // Line thickness
-    opacity: 0.6 // Line opacity
+    color: 'blue', 
+    weight: 4, 
+    opacity: 0.6 
   }).addTo(map);
 
-  // Clear points display and inventory
   pointText.innerHTML = `Point total: ${playerPoints} | Coins: ${printCoinArrayShort(playerInventory)}`;
 
-  // Recreate the map state as if it were fresh
-  checkForCacheInteraction(); // Redraw the caches based on the starting conditions
+  checkForCacheInteraction(); 
 
-  // Clear localStorage (reset saved game data)
   
   localStorage.removeItem("gameState");
   map.setView(PLAYER_POS, GAMEPLAY_ZOOM_LEVEL);
 }
 
-// Attach the reset functionality to the reset button
-document.getElementById("reset")!.addEventListener("click", resetGame);
+
+document.getElementById("reset")!.addEventListener('click', function() {
+  const userInput = prompt("Please type 'confirm' to reset:");
+
+  if (userInput === 'confirm') {
+    resetGame();
+  }
+});
 
 
 
 
 //I RAN INTO AN ISSUE WITH THIS FUNCITON. SEE THE COMMENT ABOVE
 //getPlayerLocaiton() for more details. THIS FUNCTION IS NOT 
-//ENTIRELY MINE
-
-
-// Add an event listener to the "sensor" button
-// Attach event listener for the sensor button click
-
+//ENTIRELY MINE. THIS IS WHY THE COMMENTS ARE A LITTLE WIERD
 document.getElementById("sensor")!.addEventListener("click", async () => {
-  try {
+    try {
+    
+
     // Await the player's location asynchronously
     const PlayerLocation = await getPlayerLocation();
 
@@ -452,6 +435,9 @@ document.getElementById("sensor")!.addEventListener("click", async () => {
   } catch (error) {
     console.error("Error getting player's location:", error);
   }
+  movePlayer("south");
+
+
 });
 
 
@@ -459,7 +445,7 @@ document.getElementById("sensor")!.addEventListener("click", async () => {
 //THIS FUNCITON IS NOT MINE
 //THIS WAS CREATED BY CHAT GPT
 //I WOULD HAVE USED BRACE, BUT WHILE I WAS TYRING TO, IT GAVE ME AN
-//ERROR SAYING THAT MY QUOTA WAS MET
+//ERROR SAYING THAT MY QUOTA WAS MET. I POSTED ABOUT THIS IN DISCORD
 //I wrote approxamatly 50% of this funciton. The "promise" was something 
 //that chatgpt taught me how to use, along with how to use it with a try catch loop
 // Refactored getPlayerLocation function to return a Promise
