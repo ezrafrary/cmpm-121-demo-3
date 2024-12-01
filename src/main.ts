@@ -355,6 +355,7 @@ function loadGameState() {
 
     // Restore player position on the map
     playerMarker.setLatLng(PLAYER_POS);
+    map.setView(PLAYER_POS, GAMEPLAY_ZOOM_LEVEL);
   }
 }
 
@@ -416,8 +417,74 @@ function resetGame() {
   checkForCacheInteraction(); // Redraw the caches based on the starting conditions
 
   // Clear localStorage (reset saved game data)
+  
   localStorage.removeItem("gameState");
+  map.setView(PLAYER_POS, GAMEPLAY_ZOOM_LEVEL);
 }
 
 // Attach the reset functionality to the reset button
 document.getElementById("reset")!.addEventListener("click", resetGame);
+
+
+
+
+//I RAN INTO AN ISSUE WITH THIS FUNCITON. SEE THE COMMENT ABOVE
+//getPlayerLocaiton() for more details. THIS FUNCTION IS NOT 
+//ENTIRELY MINE
+
+
+// Add an event listener to the "sensor" button
+// Attach event listener for the sensor button click
+
+document.getElementById("sensor")!.addEventListener("click", async () => {
+  try {
+    // Await the player's location asynchronously
+    const PlayerLocation = await getPlayerLocation();
+
+    // Update PLAYER_POS to the new location
+    PLAYER_POS = PlayerLocation;
+
+    // Teleport player marker to the current position
+    playerMarker.setLatLng(PlayerLocation);
+
+    // Update the map view to focus on the new position
+    map.setView(PlayerLocation, GAMEPLAY_ZOOM_LEVEL); // Use the desired zoom level
+  } catch (error) {
+    console.error("Error getting player's location:", error);
+  }
+});
+
+
+
+//THIS FUNCITON IS NOT MINE
+//THIS WAS CREATED BY CHAT GPT
+//I WOULD HAVE USED BRACE, BUT WHILE I WAS TYRING TO, IT GAVE ME AN
+//ERROR SAYING THAT MY QUOTA WAS MET
+//I wrote approxamatly 50% of this funciton. The "promise" was something 
+//that chatgpt taught me how to use, along with how to use it with a try catch loop
+// Refactored getPlayerLocation function to return a Promise
+function getPlayerLocation(): Promise<leaflet.LatLng> {
+  return new Promise((resolve, reject) => {
+    // Check if geolocation is available
+    if (navigator.geolocation) {
+      // Get the user's current position
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          // Get latitude and longitude from the position object
+          const latitude = position.coords.latitude;
+          const longitude = position.coords.longitude;
+
+          // Resolve the promise with the player's location as a leaflet.LatLng object
+          resolve(leaflet.latLng(latitude, longitude));
+        },
+        (error) => {
+          // Reject the promise if there's an error
+          reject('Geolocation error: ' + error.message);
+        }
+      );
+    } else {
+      // Reject the promise if geolocation is not supported
+      reject('Geolocation is not supported by your browser.');
+    }
+  });
+}
