@@ -283,8 +283,9 @@ function checkForCacheInteraction() {
   removeOutOfRangeCaches(playerCord); // Clean up non-visible tiles
 } 
 
-// Handle player movement
+// Handle player movement and update polyline
 const MOVEMENT_STEP = TILE_DEGREES;
+
 function movePlayer(direction: "north" | "south" | "west" | "east") {
   let newLat = PLAYER_POS.lat;
   let newLng = PLAYER_POS.lng;
@@ -296,11 +297,19 @@ function movePlayer(direction: "north" | "south" | "west" | "east") {
 
   PLAYER_POS.lat = newLat;
   PLAYER_POS.lng = newLng;
-  playerMarker.setLatLng([newLat, newLng]);
+
+  playerMarker.setLatLng([newLat, newLng]); // Move the player marker
   checkForCacheInteraction(); // Trigger fog of war updates
 
+  // Add the new position to the path
+  playerPath.push(leaflet.latLng(newLat, newLng));
+
+  // Update the polyline with the new path
+  playerPathPolyline.setLatLngs(playerPath);
+
   saveGameState();
-} 
+}
+
 
 // Hook up movement buttons
 document.getElementById("north")!.addEventListener("click", () => movePlayer("north"));
@@ -350,6 +359,24 @@ function loadGameState() {
 }
 
 
+
+
+const playerPath: leaflet.LatLng[] = [];
+
+// Create a polyline to visualize the path on the map
+let playerPathPolyline = leaflet.polyline(playerPath, {
+  color: 'blue', // Line color
+  weight: 4, // Line thickness
+  opacity: 0.6 // Line opacity
+}).addTo(map);
+
+//first position
+playerPath.push(leaflet.latLng(PLAYER_POS.lat, PLAYER_POS.lng));
+
+
+
+
+
 // Reset the game to its initial state
 function resetGame() {
   // Reset player position to the original start position
@@ -366,10 +393,21 @@ function resetGame() {
   // Clear the map of any cache rectangles that might be present
   map.eachLayer((layer) => {
     // Remove all layers except for the tile layer and player marker
-    if (layer !== playerMarker && layer !== backgroundStuff) {
+    if (layer !== playerMarker && layer !== backgroundStuff && layer !== playerPathPolyline) {
       map.removeLayer(layer);
     }
   });
+
+  playerPath.length = 0;
+  
+  
+  playerPath.push(leaflet.latLng(PLAYER_POS.lat, PLAYER_POS.lng));
+
+  playerPathPolyline = leaflet.polyline(playerPath, {
+    color: 'blue', // Line color
+    weight: 4, // Line thickness
+    opacity: 0.6 // Line opacity
+  }).addTo(map);
 
   // Clear points display and inventory
   pointText.innerHTML = `Point total: ${playerPoints} | Coins: ${printCoinArrayShort(playerInventory)}`;
