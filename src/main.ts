@@ -14,7 +14,7 @@ import "./leafletWorkaround.ts";
 import luck from "./luck.ts";
 
 // Location of our classroom (as identified on Google Maps)
-const PLAYER_POS = leaflet.latLng(36.98949379578401, -122.06287128548504);
+let PLAYER_POS = leaflet.latLng(36.98949379578401, -122.06287128548504);
 const NULL_ISLAND_STARTING_POS = leaflet.latLng(0, 0);
 
 // Tunable gameplay parameters
@@ -34,7 +34,7 @@ const map = leaflet.map(document.getElementById("map")!, {
 });
 
 // Populate the map with a background tile layer
-leaflet
+const backgroundStuff = leaflet
   .tileLayer(
     "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
     {
@@ -226,6 +226,7 @@ function createPopup(
           tileData.set(tileKey, { pointValue, coinArray });
         }
       }
+      saveGameState();
     }
   );
 
@@ -250,6 +251,7 @@ function createPopup(
           tileData.set(tileKey, { pointValue, coinArray });
         }
       }
+      saveGameState();
     }
   );
 
@@ -279,7 +281,7 @@ function checkForCacheInteraction() {
     }
   }
   removeOutOfRangeCaches(playerCord); // Clean up non-visible tiles
-}
+} 
 
 // Handle player movement
 const MOVEMENT_STEP = TILE_DEGREES;
@@ -296,7 +298,9 @@ function movePlayer(direction: "north" | "south" | "west" | "east") {
   PLAYER_POS.lng = newLng;
   playerMarker.setLatLng([newLat, newLng]);
   checkForCacheInteraction(); // Trigger fog of war updates
-}
+
+  saveGameState();
+} 
 
 // Hook up movement buttons
 document.getElementById("north")!.addEventListener("click", () => movePlayer("north"));
@@ -305,4 +309,77 @@ document.getElementById("west")!.addEventListener("click", () => movePlayer("wes
 document.getElementById("east")!.addEventListener("click", () => movePlayer("east"));
 
 // Initial set up
+loadGameState();
 checkForCacheInteraction();
+
+
+
+
+//saving game
+function saveGameState() {
+  const gameState = {
+    playerPosition: PLAYER_POS,
+    playerPoints: playerPoints,
+    playerInventory: playerInventory,
+    spawnedTiles: Array.from(spawnedTiles),
+    tileData: Array.from(tileData.entries())
+  };
+  localStorage.setItem("gameState", JSON.stringify(gameState));
+}
+
+function loadGameState() {
+  const savedState = localStorage.getItem("gameState");
+  if (savedState) {
+    const gameState = JSON.parse(savedState);
+    PLAYER_POS = gameState.playerPosition;
+    playerPoints = gameState.playerPoints;
+    playerInventory = gameState.playerInventory;
+    spawnedTiles.clear();
+    gameState.spawnedTiles.forEach((tile: string) => spawnedTiles.add(tile));
+
+    tileData.clear();
+    gameState.tileData.forEach(([key, value]: [string, any]) => {
+      tileData.set(key, value);
+    });
+
+    pointText.innerHTML = `Point total: ${playerPoints} | Coins: ${printCoinArrayShort(playerInventory)}`;
+
+    // Restore player position on the map
+    playerMarker.setLatLng(PLAYER_POS);
+  }
+}
+
+
+// Reset the game to its initial state
+function resetGame() {
+  // Reset player position to the original start position
+  PLAYER_POS = leaflet.latLng(36.98949379578401, -122.06287128548504); // Starting position
+  playerMarker.setLatLng(PLAYER_POS); // Update player marker on the map
+
+  // Reset gameplay data
+  playerPoints = 0;
+  playerInventory = [];
+  spawnedTiles.clear();
+  activeRectangles.clear();
+  tileData.clear();
+
+  // Clear the map of any cache rectangles that might be present
+  map.eachLayer((layer) => {
+    // Remove all layers except for the tile layer and player marker
+    if (layer !== playerMarker && layer !== backgroundStuff) {
+      map.removeLayer(layer);
+    }
+  });
+
+  // Clear points display and inventory
+  pointText.innerHTML = `Point total: ${playerPoints} | Coins: ${printCoinArrayShort(playerInventory)}`;
+
+  // Recreate the map state as if it were fresh
+  checkForCacheInteraction(); // Redraw the caches based on the starting conditions
+
+  // Clear localStorage (reset saved game data)
+  localStorage.removeItem("gameState");
+}
+
+// Attach the reset functionality to the reset button
+document.getElementById("reset")!.addEventListener("click", resetGame);
