@@ -462,12 +462,8 @@ function getPlayerLocation(): Promise<leaflet.LatLng> {
 
           // Resolve the promise with the player's location as a leaflet.LatLng object
           resolve(leaflet.latLng(latitude, longitude));
-        },
-        (error) => {
-          
         }
       );
-    } else {
-    }
+    } 
   });
 }
