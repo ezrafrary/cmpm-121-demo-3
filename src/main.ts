@@ -464,13 +464,10 @@ function getPlayerLocation(): Promise<leaflet.LatLng> {
           resolve(leaflet.latLng(latitude, longitude));
         },
         (error) => {
-          // Reject the promise if there's an error
-          reject('Geolocation error: ' + error.message);
+          
         }
       );
     } else {
-      // Reject the promise if geolocation is not supported
-      reject('Geolocation is not supported by your browser.');
     }
   });
 }
