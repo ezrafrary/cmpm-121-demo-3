@@ -17,8 +17,8 @@ const NULL_ISLAND_STARTING_POS = leaflet.latLng(0, 0);
 
 // map stuff
 const GAMEPLAY_ZOOM_LEVEL = 19;
-const TILE_DEGREES = 0.0001; 
-const NEIGHBORHOOD_SIZE = 9; 
+const TILE_DEGREES = 0.0001;
+const NEIGHBORHOOD_SIZE = 9;
 const CACHE_SPAWN_PROBABILITY = 0.1; // 10%
 const map = leaflet.map(document.getElementById("map")!, {
   center: PLAYER_POS,
@@ -35,7 +35,7 @@ const backgroundStuff = leaflet
       maxZoom: GAMEPLAY_ZOOM_LEVEL,
       attribution:
         '&copy; <a href="Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community">OpenStreetMap</a>',
-    }
+    },
   )
   .addTo(map);
 
@@ -67,7 +67,8 @@ let CurrentSN = 0;
 let playerInventory: GeoCoin[] = [];
 const spawnedTiles = new Set<string>(); // Tracks which tiles are explored, so when you leave a tile, it doesnt disappear forever
 const activeRectangles: Map<string, leaflet.Rectangle> = new Map(); // Tracks currently visible tiles and shows them
-const tileData: Map<string, { pointValue: number; coinArray: GeoCoin[] }> = new Map(); //Brace helped me with the concept of Map<string
+const tileData: Map<string, { pointValue: number; coinArray: GeoCoin[] }> =
+  new Map(); //Brace helped me with the concept of Map<string
 
 function generateCoin(inputCords: Cord): GeoCoin {
   const newSN: SerialNumber = { SN: CurrentSN };
@@ -78,7 +79,8 @@ function generateCoin(inputCords: Cord): GeoCoin {
 
 //prints a singular coin
 function printCoinShort(inputCoin: GeoCoin) {
-  const returnString = `${inputCoin.coinLocation.x}:${inputCoin.coinLocation.y}#${inputCoin.SN.SN} `;
+  const returnString =
+    `${inputCoin.coinLocation.x}:${inputCoin.coinLocation.y}#${inputCoin.SN.SN} `;
   return returnString;
 }
 
@@ -97,7 +99,10 @@ function convertLeafletToCord(input: leaflet.LatLng): Cord {
 }
 
 // Transfer coins between arrays
-function transferCoin(sourceArray: GeoCoin[], targetArray: GeoCoin[]): GeoCoin | undefined {
+function transferCoin(
+  sourceArray: GeoCoin[],
+  targetArray: GeoCoin[],
+): GeoCoin | undefined {
   const coin = sourceArray.pop();
   if (coin !== undefined) {
     targetArray.push(coin);
@@ -135,8 +140,8 @@ function spawnCache(inputCord: Cord) {
     const rect = leaflet.rectangle(bounds).addTo(map);
     activeRectangles.set(tileKey, rect);
 
-    let pointValue = Math.floor(
-      luck([inputCord.x, inputCord.y, "initialValue"].toString()) * 100
+    const pointValue = Math.floor(
+      luck([inputCord.x, inputCord.y, "initialValue"].toString()) * 100,
     );
     const coinArray: GeoCoin[] = [];
     for (let i = 0; i < pointValue; i++) {
@@ -148,7 +153,9 @@ function spawnCache(inputCord: Cord) {
     tileData.set(tileKey, { pointValue, coinArray });
 
     // Bind popup to the rectangle
-    rect.bindPopup(() => createPopup(inputCord, coinArray, pointValue, tileKey));
+    rect.bindPopup(() =>
+      createPopup(inputCord, coinArray, pointValue, tileKey)
+    );
   }
 }
 
@@ -178,13 +185,13 @@ function restoreTile(tileKey: string, inputCord: Cord) {
 }
 
 // Create popup content for a cache
-//brace helped me remove some code smells, specifically the duplicate code. 
+//brace helped me remove some code smells, specifically the duplicate code.
 //This createpopup function has helped a ton
 function createPopup(
   inputCord: Cord,
   coinArray: GeoCoin[],
   initialPointValue: number,
-  tileKey: string
+  tileKey: string,
 ) {
   let pointValue = initialPointValue;
   const popupDiv = document.createElement("div");
@@ -193,9 +200,13 @@ function createPopup(
     <div>Cache at ${inputCord.x},${inputCord.y} with <span id="value">${pointValue}</span>.</div>
     <button id="collect" style="background-color: white;">collect</button>
     <button id="deposit" style="background-color: white;">deposit</button>
-    <div id="coins">${coinArray
-      .map((coin) => `${coin.coinLocation.x}:${coin.coinLocation.y}#${coin.SN.SN}`)
-      .join(" ")}</div>
+    <div id="coins">${
+    coinArray
+      .map((coin) =>
+        `${coin.coinLocation.x}:${coin.coinLocation.y}#${coin.SN.SN}`
+      )
+      .join(" ")
+  }</div>
   `;
 
   // Collect button logic
@@ -209,18 +220,24 @@ function createPopup(
         if (transferredCoin) {
           pointValue--; // Decrease the cache's point value
           playerPoints++;
-          pointText.innerHTML = `Point total: ${playerPoints} | Coins: ${printCoinArrayShort(playerInventory)}`;
-          popupDiv.querySelector<HTMLSpanElement>("#value")!.innerHTML = pointValue.toString();
-          popupDiv.querySelector<HTMLDivElement>("#coins")!.innerHTML = coinArray
-            .map((coin) => `${coin.coinLocation.x}:${coin.coinLocation.y}#${coin.SN.SN}`)
-            .join(" ");
+          pointText.innerHTML = `Point total: ${playerPoints} | Coins: ${
+            printCoinArrayShort(playerInventory)
+          }`;
+          popupDiv.querySelector<HTMLSpanElement>("#value")!.innerHTML =
+            pointValue.toString();
+          popupDiv.querySelector<HTMLDivElement>("#coins")!.innerHTML =
+            coinArray
+              .map((coin) =>
+                `${coin.coinLocation.x}:${coin.coinLocation.y}#${coin.SN.SN}`
+              )
+              .join(" ");
 
           // Save updated state to tileData
           tileData.set(tileKey, { pointValue, coinArray });
         }
       }
       saveGameState();
-    }
+    },
   );
 
   // Deposit button logic
@@ -234,18 +251,24 @@ function createPopup(
         if (transferredCoin) {
           pointValue++; // Increase the cache's point value
           playerPoints--;
-          pointText.innerHTML = `Point total: ${playerPoints} | Coins: ${printCoinArrayShort(playerInventory)}`;
-          popupDiv.querySelector<HTMLSpanElement>("#value")!.innerHTML = pointValue.toString();
-          popupDiv.querySelector<HTMLDivElement>("#coins")!.innerHTML = coinArray
-            .map((coin) => `${coin.coinLocation.x}:${coin.coinLocation.y}#${coin.SN.SN}`)
-            .join(" ");
+          pointText.innerHTML = `Point total: ${playerPoints} | Coins: ${
+            printCoinArrayShort(playerInventory)
+          }`;
+          popupDiv.querySelector<HTMLSpanElement>("#value")!.innerHTML =
+            pointValue.toString();
+          popupDiv.querySelector<HTMLDivElement>("#coins")!.innerHTML =
+            coinArray
+              .map((coin) =>
+                `${coin.coinLocation.x}:${coin.coinLocation.y}#${coin.SN.SN}`
+              )
+              .join(" ");
 
           // Save updated state to tileData
           tileData.set(tileKey, { pointValue, coinArray });
         }
       }
       saveGameState();
-    }
+    },
   );
 
   //return statement not really used, but it is nice to have
@@ -269,14 +292,21 @@ function removeOutOfRangeCaches(playerCord: Cord) {
 // Spawn or restore tiles within neighborhood
 function checkForCacheInteraction() {
   const playerCord = convertLeafletToCord(PLAYER_POS);
-  for (let i = -NEIGHBORHOOD_SIZE + playerCord.x; i <= NEIGHBORHOOD_SIZE + playerCord.x; i++) {
-    for (let j = -NEIGHBORHOOD_SIZE + playerCord.y; j <= NEIGHBORHOOD_SIZE + playerCord.y; j++) {
+  for (
+    let i = -NEIGHBORHOOD_SIZE + playerCord.x;
+    i <= NEIGHBORHOOD_SIZE + playerCord.x;
+    i++
+  ) {
+    for (
+      let j = -NEIGHBORHOOD_SIZE + playerCord.y;
+      j <= NEIGHBORHOOD_SIZE + playerCord.y;
+      j++
+    ) {
       spawnCache({ x: i, y: j });
     }
   }
   removeOutOfRangeCaches(playerCord); // Clean up non-visible tiles
-} 
-
+}
 
 const MOVEMENT_STEP = TILE_DEGREES; //what direction the player is going. origionally didn't have this, but what if we want the buttons to move the player by more or less than a tile?
 function movePlayer(direction: "north" | "south" | "west" | "east") {
@@ -292,7 +322,7 @@ function movePlayer(direction: "north" | "south" | "west" | "east") {
   PLAYER_POS.lng = newLng;
 
   playerMarker.setLatLng([newLat, newLng]); // Move the player marker
-  checkForCacheInteraction(); 
+  checkForCacheInteraction();
 
   playerPath.push(leaflet.latLng(newLat, newLng));
   playerPathPolyline.setLatLngs(playerPath);
@@ -300,12 +330,23 @@ function movePlayer(direction: "north" | "south" | "west" | "east") {
   saveGameState();
 }
 
-
 // Hook up movement buttons
-document.getElementById("north")!.addEventListener("click", () => movePlayer("north"));
-document.getElementById("south")!.addEventListener("click", () => movePlayer("south"));
-document.getElementById("west")!.addEventListener("click", () => movePlayer("west"));
-document.getElementById("east")!.addEventListener("click", () => movePlayer("east"));
+document.getElementById("north")!.addEventListener(
+  "click",
+  () => movePlayer("north"),
+);
+document.getElementById("south")!.addEventListener(
+  "click",
+  () => movePlayer("south"),
+);
+document.getElementById("west")!.addEventListener(
+  "click",
+  () => movePlayer("west"),
+);
+document.getElementById("east")!.addEventListener(
+  "click",
+  () => movePlayer("east"),
+);
 
 // Initial set up
 loadGameState();
@@ -313,24 +354,21 @@ checkForCacheInteraction();
 const playerPath: leaflet.LatLng[] = [];
 // Create a polyline to visualize the path on the map
 let playerPathPolyline = leaflet.polyline(playerPath, {
-  color: 'blue', // Line color
+  color: "blue", // Line color
   weight: 4, // Line thickness
-  opacity: 0.6 // Line opacity
+  opacity: 0.6, // Line opacity
 }).addTo(map);
 
 //first position
 playerPath.push(leaflet.latLng(PLAYER_POS.lat, PLAYER_POS.lng));
 
-
-
-//saving game, brace was a help in creating this specifically the "localStorage" keyword
 function saveGameState() {
   const gameState = {
     playerPosition: PLAYER_POS,
     playerPoints: playerPoints,
     playerInventory: playerInventory,
     spawnedTiles: Array.from(spawnedTiles),
-    tileData: Array.from(tileData.entries())
+    tileData: Array.from(tileData.entries()),
   };
   localStorage.setItem("gameState", JSON.stringify(gameState));
 }
@@ -346,11 +384,17 @@ function loadGameState() {
     gameState.spawnedTiles.forEach((tile: string) => spawnedTiles.add(tile));
 
     tileData.clear();
-    gameState.tileData.forEach(([key, value]: [string, any]) => {
-      tileData.set(key, value);
-    });
+    gameState.tileData.forEach(
+      (
+        [key, value]: [string, { pointValue: number; coinArray: GeoCoin[] }],
+      ) => {
+        tileData.set(key, value);
+      },
+    );
 
-    pointText.innerHTML = `Point total: ${playerPoints} | Coins: ${printCoinArrayShort(playerInventory)}`;
+    pointText.innerHTML = `Point total: ${playerPoints} | Coins: ${
+      printCoinArrayShort(playerInventory)
+    }`;
 
     // Restore player position on the map
     playerMarker.setLatLng(PLAYER_POS);
@@ -358,17 +402,9 @@ function loadGameState() {
   }
 }
 
-
-
-
-
-
-
-
-
 function resetGame() {
   PLAYER_POS = leaflet.latLng(36.98949379578401, -122.06287128548504); // Starting position
-  playerMarker.setLatLng(PLAYER_POS); 
+  playerMarker.setLatLng(PLAYER_POS);
 
   // Reset gameplay data
   playerPoints = 0;
@@ -379,7 +415,10 @@ function resetGame() {
 
   //this deletes all the rectangles from the screen
   map.eachLayer((layer) => {
-    if (layer !== playerMarker && layer !== backgroundStuff && layer !== playerPathPolyline) {
+    if (
+      layer !== playerMarker &&
+      layer !== backgroundStuff && layer !== playerPathPolyline
+    ) {
       map.removeLayer(layer);
     }
   });
@@ -388,40 +427,29 @@ function resetGame() {
   playerPath.push(leaflet.latLng(PLAYER_POS.lat, PLAYER_POS.lng));
 
   playerPathPolyline = leaflet.polyline(playerPath, {
-    color: 'blue', 
-    weight: 4, 
-    opacity: 0.6 
+    color: "blue",
+    weight: 4,
+    opacity: 0.6,
   }).addTo(map);
 
-  pointText.innerHTML = `Point total: ${playerPoints} | Coins: ${printCoinArrayShort(playerInventory)}`;
-
-  checkForCacheInteraction(); 
-
-  
+  pointText.innerHTML = `Point total: ${playerPoints} | Coins: ${
+    printCoinArrayShort(playerInventory)
+  }`;
+  checkForCacheInteraction();
   localStorage.removeItem("gameState");
   map.setView(PLAYER_POS, GAMEPLAY_ZOOM_LEVEL);
 }
 
-
-document.getElementById("reset")!.addEventListener('click', function() {
+document.getElementById("reset")!.addEventListener("click", function () {
   const userInput = prompt("Please type 'confirm' to reset:");
 
-  if (userInput === 'confirm') {
+  if (userInput === "confirm") {
     resetGame();
   }
 });
 
-
-
-
-//I RAN INTO AN ISSUE WITH THIS FUNCITON. SEE THE COMMENT ABOVE
-//getPlayerLocaiton() for more details. THIS FUNCTION IS NOT 
-//ENTIRELY MINE. THIS IS WHY THE COMMENTS ARE A LITTLE WIERD
 document.getElementById("sensor")!.addEventListener("click", async () => {
-    try {
-    
-
-    // Await the player's location asynchronously
+  try {
     const PlayerLocation = await getPlayerLocation();
 
     // Update PLAYER_POS to the new location
@@ -436,19 +464,8 @@ document.getElementById("sensor")!.addEventListener("click", async () => {
     console.error("Error getting player's location:", error);
   }
   movePlayer("south");
-
-
 });
 
-
-
-//THIS FUNCITON IS NOT MINE
-//THIS WAS CREATED BY CHAT GPT
-//I WOULD HAVE USED BRACE, BUT WHILE I WAS TYRING TO, IT GAVE ME AN
-//ERROR SAYING THAT MY QUOTA WAS MET. I POSTED ABOUT THIS IN DISCORD
-//I wrote approxamatly 50% of this funciton. The "promise" was something 
-//that chatgpt taught me how to use, along with how to use it with a try catch loop
-// Refactored getPlayerLocation function to return a Promise
 function getPlayerLocation(): Promise<leaflet.LatLng> {
   return new Promise((resolve, reject) => {
     // Check if geolocation is available
@@ -462,8 +479,15 @@ function getPlayerLocation(): Promise<leaflet.LatLng> {
 
           // Resolve the promise with the player's location as a leaflet.LatLng object
           resolve(leaflet.latLng(latitude, longitude));
-        }
+        },
+        (error) => {
+          // Reject the promise if there's an error
+          reject("Geolocation error: " + error.message);
+        },
       );
-    } 
+    } else {
+      // Reject the promise if geolocation is not supported
+      reject("Geolocation is not supported by your browser.");
+    }
   });
 }
